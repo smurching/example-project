@@ -1,4 +1,4 @@
-walgreens
+Example project
 ==============================
 
 This directory contains an ML project based on the
