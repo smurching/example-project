@@ -1,0 +1,128 @@
+name: walgreens Model Deployment
+
+on:
+  workflow_dispatch:
+
+env:
+  DATABRICKS_DEV_HOST: https://adb-XXXX.XX.azuredatabricks.net
+  DATABRICKS_STAGING_HOST: https://adb-XXXX.XX.azuredatabricks.net
+  DATABRICKS_PROD_HOST: https://adb-XXXX.XX.azuredatabricks.net
+  NODE_TYPE_ID: Standard_D3_v2
+  WORKSPACE_BASE_DIR: /
+
+jobs:
+  dev:
+    runs-on: ubuntu-20.04
+    environment: development
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+      # The step below does the following:
+      # 1. Sends a POST request to generate an Azure Active Directory token for an Azure service principal
+      # 2. Parses the token from the request response and then saves that in as DATABRICKS_TOKEN in the
+      # GitHub enviornment.
+      # Note: if the API request fails, the request response json will not have an "access_token" field and
+      # the DATABRICKS_TOKEN env variable will be empty.
+      - name: Generate AAD Token
+        run: |
+          echo "DATABRICKS_TOKEN=$(curl -X POST -H 'Content-Type: application/x-www-form-urlencoded' \
+            https://login.microsoftonline.com/${{ secrets.AZURE_SP_TENANT_ID }}/oauth2/v2.0/token \
+            -d 'client_id=${{ secrets.AZURE_SP_APPLICATION_ID }}' \
+            -d 'grant_type=client_credentials' \
+            -d 'scope=62a912ac-b58e-4c1d-89ea-b2dbfc7358fc%2F.default' \
+            -d 'client_secret=${{ secrets.AZURE_SP_CLIENT_SECRET }}' |  jq -r  '.access_token')" >> $GITHUB_ENV 
+      - name: Train model
+        uses: databricks/run-notebook@v0
+        id: train
+        with:
+          databricks-host: ${{ env.DATABRICKS_DEV_HOST }} 
+          local-notebook-path: notebooks/Deploy.py
+          git-commit: ${{ github.sha }} 
+          new-cluster-json: >
+            {
+              "spark_version": "10.5.x-cpu-ml-scala2.12",
+              "node_type_id": "${{ env.NODE_TYPE_ID }}",
+              "num_workers": 0,
+              "spark_conf": {
+                "spark.databricks.cluster.profile": "singleNode",
+                "spark.master": "local[*, 4]"
+              },
+              "custom_tags": {
+                "ResourceClass": "SingleNode"
+              }
+            }
+          run-name: ML Model Training
+
+  staging:
+    needs: dev
+    runs-on: ubuntu-20.04
+    environment: staging
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+      - name: Generate AAD Token
+        run: |
+          echo "DATABRICKS_TOKEN=$(curl -X POST -H 'Content-Type: application/x-www-form-urlencoded' \
+            https://login.microsoftonline.com/${{ secrets.AZURE_SP_TENANT_ID }}/oauth2/v2.0/token \
+            -d 'client_id=${{ secrets.AZURE_SP_APPLICATION_ID }}' \
+            -d 'grant_type=client_credentials' \
+            -d 'scope=62a912ac-b58e-4c1d-89ea-b2dbfc7358fc%2F.default' \
+            -d 'client_secret=${{ secrets.AZURE_SP_CLIENT_SECRET }}' |  jq -r  '.access_token')" >> $GITHUB_ENV 
+      - name: Train model
+        uses: databricks/run-notebook@v0
+        id: train
+        with:
+          databricks-host: ${{ env.DATABRICKS_STAGING_HOST }}
+          local-notebook-path: notebooks/Deploy.py
+          git-commit: ${{ github.sha }}
+          new-cluster-json: >
+            {
+              "spark_version": "10.5.x-cpu-ml-scala2.12",
+              "node_type_id": "${{ env.NODE_TYPE_ID }}",
+              "num_workers": 0,
+              "spark_conf": {
+                "spark.databricks.cluster.profile": "singleNode",
+                "spark.master": "local[*, 4]"
+              },
+              "custom_tags": {
+                "ResourceClass": "SingleNode"
+              }
+            }
+          run-name: ML Model Training
+
+  prod:
+    needs: staging
+    runs-on: ubuntu-20.04
+    environment: production
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+      - name: Generate AAD Token
+        run: |
+          echo "DATABRICKS_TOKEN=$(curl -X POST -H 'Content-Type: application/x-www-form-urlencoded' \
+            https://login.microsoftonline.com/${{ secrets.AZURE_SP_TENANT_ID }}/oauth2/v2.0/token \
+            -d 'client_id=${{ secrets.AZURE_SP_APPLICATION_ID }}' \
+            -d 'grant_type=client_credentials' \
+            -d 'scope=62a912ac-b58e-4c1d-89ea-b2dbfc7358fc%2F.default' \
+            -d 'client_secret=${{ secrets.AZURE_SP_CLIENT_SECRET }}' |  jq -r  '.access_token')" >> $GITHUB_ENV 
+      - name: Train model
+        uses: databricks/run-notebook@v0
+        id: train
+        with:
+          databricks-host: ${{ env.DATABRICKS_PROD_HOST }} 
+          local-notebook-path: notebooks/Deploy.py
+          git-commit: ${{ github.sha }} 
+          new-cluster-json: >
+            {
+              "spark_version": "10.5.x-cpu-ml-scala2.12",
+              "node_type_id": "${{ env.NODE_TYPE_ID }}",
+              "num_workers": 0,
+              "spark_conf": {
+                "spark.databricks.cluster.profile": "singleNode",
+                "spark.master": "local[*, 4]"
+              },
+              "custom_tags": {
+                "ResourceClass": "SingleNode"
+              }
+            }
+          run-name: ML Model Training

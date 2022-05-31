@@ -1,0 +1,204 @@
+name: Terraform Integration for walgreens
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'databricks-config/**'
+
+defaults:
+  run:
+    working-directory: ./databricks-config
+
+# Code reference can be found at https://github.com/hashicorp/setup-terraform
+jobs:
+  dev:
+    runs-on: ubuntu-20.04
+    env:
+      DATABRICKS_HOST: https://adb-XXXX.XX.azuredatabricks.net
+      DATABRICKS_TOKEN: ${{ secrets.DEV_WORKSPACE_TOKEN }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: hashicorp/setup-terraform@v1
+      - name: Terraform fmt
+        id: fmt
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: Terraform Init
+        id: init
+        run: terraform -chdir=dev init
+        # TODO: Please provide necessary terraform backend credentials here.
+        # Please see: https://www.terraform.io/language/settings/backends/configuration#partial-configuration
+        # Please see the docs specific to your backend for details on how to authenticate.
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform -chdir=dev validate -no-color
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform -chdir=dev plan -no-color -var="git_repo_url=${{ github.server_url }}/${{ github.repository }}"
+
+      - name: Create Comment with Terraform Plan
+        uses: actions/github-script@v6
+        id: comment
+        env:
+          PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const output = `#### Terraform Dev Format and Style 🖌 \`${{ steps.fmt.outcome }}\`
+            #### Terraform Dev Initialization ⚙️ \`${{ steps.init.outcome }}\`
+            #### Terraform Dev Validation 🤖 \`${{ steps.validate.outcome }}\`
+            <details><summary>Dev Validation Output</summary>
+
+            \`\`\`\n
+            ${{ steps.validate.outputs.stdout }}
+            \`\`\`
+
+            </details>
+
+            #### Terraform Dev Plan 📖 \`${{ steps.plan.outcome }}\`
+
+            <details><summary>Show Dev Plan</summary>
+
+            \`\`\`\n
+            ${process.env.PLAN}
+            \`\`\`
+
+            </details>`
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+  staging:
+    runs-on: ubuntu-20.04
+    env:
+      DATABRICKS_HOST: https://adb-XXXX.XX.azuredatabricks.net
+      DATABRICKS_TOKEN: ${{ secrets.STAGING_WORKSPACE_TOKEN }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: hashicorp/setup-terraform@v1
+      - name: Terraform fmt
+        id: fmt
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: Terraform Init
+        id: init
+        run: terraform -chdir=staging init
+        # TODO: Please provide necessary terraform backend credentials here.
+        # Please see: https://www.terraform.io/language/settings/backends/configuration#partial-configuration
+        # Please see the docs specific to your backend for details on how to authenticate.
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform -chdir=staging validate -no-color
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform -chdir=staging plan -no-color -var="git_repo_url=${{ github.server_url }}/${{ github.repository }}"
+
+      - name: Create Comment with Terraform Plan
+        uses: actions/github-script@v6
+        id: comment
+        env:
+          PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const output = `#### Terraform Staging Format and Style 🖌 \`${{ steps.fmt.outcome }}\`
+            #### Terraform Staging Initialization ⚙️ \`${{ steps.init.outcome }}\`
+            #### Terraform Staging Validation 🤖 \`{{ steps.validate.outcome }}\`
+            <details><summary>Staging Validation Output</summary>
+
+            \`\`\`\n
+            ${{ steps.validate.outputs.stdout }}
+            \`\`\`
+
+            </details>
+
+            #### Terraform Staging Plan 📖 \`${{ steps.plan.outcome }}\`
+
+            <details><summary>Show Staging Plan</summary>
+
+            \`\`\`\n
+            ${process.env.PLAN}
+            \`\`\`
+
+            </details>`
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+  prod:
+    runs-on: ubuntu-20.04
+    env:
+      DATABRICKS_HOST: https://adb-XXXX.XX.azuredatabricks.net
+      DATABRICKS_TOKEN: ${{ secrets.PROD_WORKSPACE_TOKEN }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: hashicorp/setup-terraform@v1
+      - name: Terraform fmt
+        id: fmt
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: Terraform Init
+        id: init
+        run: terraform -chdir=prod init
+        # TODO: Please provide necessary terraform backend credentials here.
+        # Please see: https://www.terraform.io/language/settings/backends/configuration#partial-configuration
+        # Please see the docs specific to your backend for details on how to authenticate.
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform -chdir=prod validate -no-color
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform -chdir=staging plan -no-color -var="git_repo_url=${{ github.server_url }}/${{ github.repository }}"
+
+      - name: Create Comment with Terraform Plan
+        uses: actions/github-script@v6
+        id: comment
+        env:
+          PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const output = `#### Terraform Prod Format and Style 🖌 \`${{ steps.fmt.outcome }}\`
+            #### Terraform Prod Initialization ⚙️ \`${{ steps.init.outcome }}\`
+            #### Terraform Prod Validation 🤖 \`${{ steps.validate.outcome }}\`
+            <details><summary>Prod Validation Output</summary>
+
+            \`\`\`\n
+            ${{ steps.validate.outputs.stdout }}
+            \`\`\`
+
+            </details>
+
+            #### Terraform Prod Plan 📖 \`${{ steps.plan.outcome }}\`
+
+            <details><summary>Show Prod Plan</summary>
+
+            \`\`\`\n
+            ${process.env.PLAN}
+            \`\`\`
+
+            </details>`
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })

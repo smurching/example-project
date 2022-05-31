@@ -1,0 +1,59 @@
+name: Update dev ML resource configs for walgreens
+
+on:
+  workflow_dispatch:
+
+env:
+  DATABRICKS_HOST: https://adb-XXXX.XX.azuredatabricks.net
+  DATABRICKS_TOKEN: ${{ secret.DEV_WORKSPACE_TOKEN}}
+
+defaults:
+  run:
+    working-directory: ./databricks-config
+
+jobs:
+  dev:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: hashicorp/setup-terraform@v1
+      - name: Terraform fmt
+        id: fmt
+        run: terraform -chdir=dev fmt -check
+        continue-on-error: true
+
+      - name: Terraform Init
+        id: init
+        run: terraform -chdir=dev init
+        # TODO: Please provide necessary terraform backend credentials here.
+        # Please see: https://www.terraform.io/language/settings/backends/configuration#partial-configuration
+        # Please see the docs specific to your backend for details on how to authenticate.
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform -chdir=dev validate
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform -chdir=dev plan -var="git_repo_url=${{ github.server_url }}/${{ github.repository }}"
+
+      - name: Terraform Apply
+        id: apply
+        run: terraform -chdir=dev apply -auto-approve -var="git_repo_url=${{ github.server_url }}/${{ github.repository }}"
+
+      - name: Terraform Output
+        id: output
+        run: terraform -chdir=dev output -json
+
+      - name: Commit Terraform Output to File
+        id: commit
+        run: |
+          echo '${{ steps.output.outputs.stdout }}' | jq '.' > output/dev.json
+          git config --global user.name 'Terraform Output Github Workflow'
+          git config --global user.email '<>'
+          output=$(git status --porcelain)
+          if [ ! -z "$output" ]
+          then
+            git commit -am "Commit dev output to master"
+            git push
+          fi

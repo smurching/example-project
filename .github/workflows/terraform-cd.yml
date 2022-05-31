@@ -1,0 +1,160 @@
+name: Terraform Deployment for walgreens
+
+on:
+  push:
+    branches:
+      - 'master'
+    paths:
+      - 'databricks-config/**'
+
+defaults:
+  run:
+    working-directory: ./databricks-config
+
+jobs:
+  dev:
+    runs-on: ubuntu-20.04
+    env:
+      DATABRICKS_HOST: https://adb-XXXX.XX.azuredatabricks.net
+      DATABRICKS_TOKEN: ${{ secret.DEV_WORKSPACE_TOKEN}}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: hashicorp/setup-terraform@v1
+      - name: Terraform fmt
+        id: fmt
+        run: terraform -chdir=dev fmt -check
+        continue-on-error: true
+
+      - name: Terraform Init
+        id: init
+        run: terraform -chdir=dev init
+        # TODO: Please provide necessary terraform backend credentials here.
+        # Please see: https://www.terraform.io/language/settings/backends/configuration#partial-configuration
+        # Please see the docs specific to your backend for details on how to authenticate.
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform -chdir=dev validate
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform -chdir=dev plan -var="git_repo_url=${{ github.server_url }}/${{ github.repository }}"
+
+      - name: Terraform Apply
+        id: apply
+        run: terraform -chdir=dev apply -auto-approve -var="git_repo_url=${{ github.server_url }}/${{ github.repository }}"
+
+      - name: Terraform Output
+        id: output
+        run: terraform -chdir=dev output -json
+
+      - name: Commit Terraform Output to File
+        id: commit
+        run: |
+          echo '${{ steps.output.outputs.stdout }}' | jq '.' > output/dev.json
+          git config --global user.name 'Terraform Output Github Workflow'
+          git config --global user.email '<>'
+          output=$(git status --porcelain)
+          if [ ! -z "$output" ]
+          then
+            git commit -am "Commit dev output to master"
+            git push
+          fi
+  staging:
+    needs: dev
+    runs-on: ubuntu-20.04
+    env:
+      DATABRICKS_HOST: https://adb-XXXX.XX.azuredatabricks.net
+      DATABRICKS_TOKEN: ${{ secret.STAGING_WORKSPACE_TOKEN}}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: hashicorp/setup-terraform@v1
+      - name: Terraform fmt
+        id: fmt
+        run: terraform -chdir=staging fmt -check
+        continue-on-error: true
+      - name: Terraform Init
+        id: init
+        run: terraform -chdir=staging init
+        # TODO: Please provide necessary terraform backend credentials here.
+        # Please see: https://www.terraform.io/language/settings/backends/configuration#partial-configuration
+        # Please see the docs specific to your backend for details on how to authenticate.
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform -chdir=staging validate
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform -chdir=staging plan -var="git_repo_url=${{ github.server_url }}/${{ github.repository }}"
+
+      - name: Terraform Apply
+        id: apply
+        run: terraform -chdir=staging apply -auto-approve -var="git_repo_url=${{ github.server_url }}/${{ github.repository }}"
+
+      - name: Terraform Output
+        id: output
+        run: terraform -chdir=staging output -json
+
+      - name: Commit Terraform Output to File
+        id: commit
+        run: |
+          echo '${{ steps.output.outputs.stdout }}' | jq '.' > output/staging.json
+          git config --global user.name 'Terraform Output Github Workflow'
+          git config --global user.email '<>'
+          output=$(git status --porcelain)
+          if [ ! -z "$output" ]
+          then
+            git commit -am "Commit staging output to master"
+            git push
+          fi
+
+  prod:
+    needs: staging
+    runs-on: ubuntu-20.04
+    env:
+      DATABRICKS_HOST: https://adb-XXXX.XX.azuredatabricks.net
+      DATABRICKS_TOKEN: ${{ secret.PROD_WORKSPACE_TOKEN}}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: hashicorp/setup-terraform@v1
+      - name: Terraform fmt
+        id: fmt
+        run: terraform -chdir=prod fmt -check
+        continue-on-error: true
+      - name: Terraform Init
+        id: init
+        run: terraform -chdir=prod init
+        # TODO: Please provide necessary terraform backend credentials here.
+        # Please see: https://www.terraform.io/language/settings/backends/configuration#partial-configuration
+        # Please see the docs specific to your backend for details on how to authenticate.
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform -chdir=prod validate
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform -chdir=prod plan -var="git_repo_url=${{ github.server_url }}/${{ github.repository }}"
+
+      - name: Terraform Apply
+        id: apply
+        run: terraform -chdir=prod apply -auto-approve -var="git_repo_url=${{ github.server_url }}/${{ github.repository }}"
+
+      - name: Terraform Output
+        id: output
+        run: terraform -chdir=prod output -json
+
+      - name: Commit Terraform Output to File
+        id: commit
+        run: |
+          git pull
+          echo '${{ steps.output.outputs.stdout }}' | jq '.' > output/prod.json
+          git config --global user.name 'Terraform Output Github Workflow'
+          git config --global user.email '<>'
+          output=$(git status --porcelain)
+          if [ ! -z "$output" ]
+          then
+            git commit -am "Commit prod output to master"
+            git push
+          fi
