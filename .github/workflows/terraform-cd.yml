@@ -1,4 +1,4 @@
-name: Terraform Deployment for walgreens
+name: Terraform Deployment for example-project
 
 on:
   push:

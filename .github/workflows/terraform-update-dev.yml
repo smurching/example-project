@@ -1,4 +1,4 @@
-name: Update dev ML resource configs for walgreens
+name: Update dev ML resource configs for example-project
 
 on:
   workflow_dispatch:

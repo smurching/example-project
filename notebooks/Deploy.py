@@ -20,8 +20,8 @@ import mlflow
 from mlflow.tracking import MlflowClient
 from mlflow.exceptions import MlflowException
 client = MlflowClient()
-model_name = "walgreens Model"
-mlflow.set_experiment("//walgreens-experiment")
+model_name = "example-project Model"
+mlflow.set_experiment("//example-project-experiment")
 
 # COMMAND ----------
 

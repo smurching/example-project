@@ -1,4 +1,4 @@
-name: walgreens Integration Tests
+name: example-project Integration Tests
 
 on:
   workflow_dispatch:
@@ -42,4 +42,4 @@ jobs:
                 "ResourceClass": "SingleNode"
               }
             }
-          run-name: walgreens Integration Test
+          run-name: example-project Integration Test

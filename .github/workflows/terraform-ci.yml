@@ -1,4 +1,4 @@
-name: Terraform Integration for walgreens
+name: Terraform Integration for example-project
 
 on:
   workflow_dispatch:

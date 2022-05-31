@@ -1,4 +1,4 @@
-name: walgreens Model Deployment
+name: example-project Model Deployment
 
 on:
   workflow_dispatch:

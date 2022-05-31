@@ -16,18 +16,18 @@ variable "git_repo_url" {
 }
 
 resource "databricks_mlflow_experiment" "experiment" {
-  name              = "//walgreens-experiment"
-  description       = "MLflow Experiment used to track runs for walgreens project."
+  name              = "//example-project-experiment"
+  description       = "MLflow Experiment used to track runs for example-project project."
 }
 
 resource "databricks_mlflow_model" "registered_model" {
-  name = "walgreens Model"
+  name = "example-project Model"
 
   description = "My MLflow model description"
 }
 
 resource "databricks_job" "model_training_job" {
-  name = "walgreens model training job"
+  name = "example-project model training job"
 
   new_cluster {
     num_workers   = 3
@@ -52,7 +52,7 @@ resource "databricks_job" "model_training_job" {
 }
 
 resource "databricks_job" "batch_inference_job" {
-  name = "walgreens batch inference job"
+  name = "example-project batch inference job"
 
   new_cluster {
     num_workers   = 3
@@ -76,18 +76,18 @@ resource "databricks_job" "batch_inference_job" {
   }
 }
 
-output "walgreens_experiment_id" {
+output "example-project_experiment_id" {
   value = databricks_mlflow_experiment.experiment.id
 }
 
-output "walgreens_model_name" {
+output "example-project_model_name" {
   value = databricks_mlflow_model.registered_model.name
 }
 
-output "walgreens_training_job_id" {
+output "example-project_training_job_id" {
   value = databricks_job.model_training_job.id
 }
 
-output "walgreens_batch_inference_job_id" {
+output "example-project_batch_inference_job_id" {
   value = databricks_job.batch_inference_job.id
 }

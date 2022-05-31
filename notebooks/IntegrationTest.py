@@ -20,7 +20,7 @@ import mlflow
 from mlflow.tracking import MlflowClient
 client = MlflowClient()
 model_name = "ML Model Test"
-mlflow.set_experiment("//walgreens-experiment")
+mlflow.set_experiment("//example-project-experiment")
 
 # COMMAND ----------
 
